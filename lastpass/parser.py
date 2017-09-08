@@ -72,7 +72,7 @@ def parse_ACCT(chunk, encryption_key):
 
         url, username, password = parse_secure_note_server(notes)
 
-    return Account(id, name, username, password, url, group)
+    return Account(id, name.decode('utf8'), username.decode('utf8'), password.decode('utf8'), url.decode('utf8'), group.decode('utf8'))
 
 
 def parse_PRIK(chunk, encryption_key):
