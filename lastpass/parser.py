@@ -57,7 +57,8 @@ def parse_ACCT(chunk, encryption_key):
     notes = decode_aes256_plain_auto(read_item(io), encryption_key)
     skip_item(io, 2)
     username = decode_aes256_plain_auto(read_item(io), encryption_key)
-    password = decode_aes256_plain_auto(read_item(io), encryption_key)
+    password = b''
+    other = decode_aes256_plain_auto(read_item(io), encryption_key)
     skip_item(io, 2)
     secure_note = read_item(io)
 
@@ -67,12 +68,23 @@ def parse_ACCT(chunk, encryption_key):
         secure_note_type = read_item(io)
 
         # Only "Server" secure note stores account information
-        if secure_note_type not in ALLOWED_SECURE_NOTE_TYPES:
-            return None
+        # if secure_note_type not in ALLOWED_SECURE_NOTE_TYPES:
+        #     return None
 
-        url, username, password = parse_secure_note_server(notes)
-
-    return Account(id, name.decode('utf8'), username.decode('utf8'), password.decode('utf8'), url.decode('utf8'), group.decode('utf8'))
+        url, username, password, other = parse_secure_note_server(notes)
+        if name != None:
+            name = name.decode('utf8')
+        if username != None:
+            username = username.decode('utf8')
+        if password != None:
+            password = password.decode('utf8')
+        if url != None:
+            url = url.decode('utf8')
+        if group != None:
+            group = group.decode('utf8')
+        if other != None:
+            other = other.decode('utf8')
+    return Account(id, name, username, password, url, group, other)
 
 
 def parse_PRIK(chunk, encryption_key):
@@ -121,21 +133,28 @@ def parse_secure_note_server(notes):
     url = None
     username = None
     password = None
+    other = b''
 
     for i in notes.split(b'\n'):
         if not i:  # blank line
             continue
         # Split only once so that strings like "Hostname:host.example.com:80"
         # get interpreted correctly
-        key, value = i.split(b':', 1)
-        if key == b'Hostname':
-            url = value
-        elif key == b'Username':
-            username = value
-        elif key == b'Password':
-            password = value
+        try:
+            key, value = i.split(b':', 1)
+            if key == b'Hostname' and url is None:
+                url = value
+            elif key == b'Username' and username is None:
+                username = value
+            elif key == b'Password' and password is None:
+                password = value
+            else:
+                other += key + b':' + value + b'\n'
+        except ValueError:
+            if i is not b'' or i is not None:
+                other += i + b'\n'
 
-    return [url, username, password]
+    return [url, username, password, other]
 
 
 def read_chunk(stream):
