@@ -3,6 +3,12 @@ from lastpass import Vault
 
 vault = Vault.open_remote('', '')
 index = 0
+print("Accounts:-------------------\n")
 for i in vault.accounts:
-    print("{} \n name:{} \n username:{} \n password:{} \n url:{} \n group:{} \n other:{} \n\n".format(index + 1, i.name, i.username, i.password, i.url, i.group, i.other))
-    index += 1;
+    print(str(index) + ". " + str(i))
+    index += 1
+print("\n\n\nSecureNote:------------------\n")
+index = 0
+for i in vault.accounts:
+    print(str(index) + ". " + str(i))
+    index += 1

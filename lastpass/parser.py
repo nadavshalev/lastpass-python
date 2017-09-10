@@ -10,7 +10,7 @@ from Crypto.Cipher import AES
 from Crypto.Util import number
 from Crypto.PublicKey import RSA
 
-from .account import Account
+from .account import *
 from .chunk import Chunk
 
 
@@ -57,21 +57,22 @@ def parse_ACCT(chunk, encryption_key):
     notes = decode_aes256_plain_auto(read_item(io), encryption_key)
     skip_item(io, 2)
     username = decode_aes256_plain_auto(read_item(io), encryption_key)
-    password = b''
-    other = decode_aes256_plain_auto(read_item(io), encryption_key)
+    password = decode_aes256_plain_auto(read_item(io), encryption_key)
     skip_item(io, 2)
     secure_note = read_item(io)
 
     # Parse secure note
     if secure_note == b"1":
-        skip_item(io, 17)
-        secure_note_type = read_item(io)
-
-        # Only "Server" secure note stores account information
-        # if secure_note_type not in ALLOWED_SECURE_NOTE_TYPES:
-        #     return None
-
-        url, username, password, other = parse_secure_note_server(notes)
+        Snote = SecureNote()
+        for i in notes.split(b'\n'):
+            if not i:  # blank line
+                continue
+            sp = i.split(b':', maxsplit=1)
+            if len(sp) < 2:
+                sp = ['general', sp[0]]
+            setattr(Snote, str(sp[0]), sp[1].decode('utf8'))
+        return Snote
+    else:
         if name != None:
             name = name.decode('utf8')
         if username != None:
@@ -82,9 +83,9 @@ def parse_ACCT(chunk, encryption_key):
             url = url.decode('utf8')
         if group != None:
             group = group.decode('utf8')
-        if other != None:
-            other = other.decode('utf8')
-    return Account(id, name, username, password, url, group, other)
+        if notes != None:
+            notes = notes.decode('utf8')
+        return Account(id, name, username, password, url, group, notes)
 
 
 def parse_PRIK(chunk, encryption_key):
@@ -133,26 +134,28 @@ def parse_secure_note_server(notes):
     url = None
     username = None
     password = None
-    other = b''
+    other = b'\n\t'
 
     for i in notes.split(b'\n'):
         if not i:  # blank line
             continue
         # Split only once so that strings like "Hostname:host.example.com:80"
         # get interpreted correctly
-        try:
-            key, value = i.split(b':', 1)
-            if key == b'Hostname' and url is None:
-                url = value
-            elif key == b'Username' and username is None:
-                username = value
-            elif key == b'Password' and password is None:
-                password = value
-            else:
-                other += key + b':' + value + b'\n'
-        except ValueError:
-            if i is not b'' or i is not None:
-                other += i + b'\n'
+        # try:
+        sp = i.split(b':', maxsplit=1)
+        key = sp[0]
+        value = sp[1]
+        if key == b'Hostname' and url is None:
+            url = value
+        elif key == b'Username' and username is None:
+            username = value
+        elif (key == b'Password' or key == b'password') and password is None:
+            password = value
+        else:
+            other += key + b':' + value + b'\n\t'
+        # except ValueError:
+        #     if i is not b'' or i is not None:
+        #         other += i + b'\n\t'
 
     return [url, username, password, other]
 
